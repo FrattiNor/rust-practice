@@ -1,71 +1,54 @@
 #![forbid(unsafe_code)]
 
-use std::fs;
-use std::io::{self, Read};
-
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::{Arg, Command};
+// use std::collections::HashMap;
 
 fn app<'a>() -> Command<'a> {
-    Command::new(env!("CARGO_PKG_NAME"))
+    return Command::new(env!("CARGO_PKG_NAME"))
         .version(env!("CARGO_PKG_VERSION"))
+        .author(env!("CARGO_PKG_AUTHORS"))
         .about(env!("CARGO_PKG_DESCRIPTION"))
         .arg(
-            Arg::new("pretty")
-                .help("pretty print the JSON")
-                .short('p')
-                .long("pretty"),
+            Arg::new("input")
+                .help("translate word or statement")
+                .index(1),
         )
         .arg(
-            Arg::new("input")
-                .help("the TOML to convert")
-                .index(1)
-                .default_value("-"),
-        )
+            Arg::new("type")
+                .help("the translate api: google microsoft baidu")
+                .short('T')
+                .long("type")
+                .default_value("google"),
+        );
 }
 
-fn main() -> Result<()> {
-    let matches = app().get_matches();
+#[tokio::main]
+async fn main() -> Result<()> {
+    let app = app().get_matches();
 
-    // Get our input source (which can be - or a filename) and its
-    // corresponding buffer. We don't bother streaming or chunking,
-    // since the `toml` crate only supports slices and strings.
-    let input_src = matches.value_of("input").unwrap();
-    let input_buf = match input_src {
-        "-" => {
-            let mut input_buf = String::new();
-            io::stdin()
-                .read_to_string(&mut input_buf)
-                .with_context(|| "failed to collect stdin")?;
-            input_buf
-        }
-        input => fs::read_to_string(input)
-            .with_context(|| format!("failed to collect from input: {}", input))?,
-    };
-
-    // Turn our collected input into a value. We can't be more specific than
-    // value, since we're doing arbitrary valid TOML conversions.
-    let value = toml::from_str::<toml::Value>(&input_buf)
-        .with_context(|| format!("parsing TOML from {} failed", input_src))?;
-
-    // Spit back out, but as JSON. `serde_json` *does* support streaming, so
-    // we do it.
-    if matches.is_present("pretty") {
-        serde_json::to_writer_pretty(io::stdout(), &value)
-    } else {
-        serde_json::to_writer(io::stdout(), &value)
+    match app.value_of("input") {
+        Some(input) => println!("{}", input),
+        None => println!("no input"),
     }
-    .with_context(|| "JSON serialization and/or stdout streaming failed")?;
+    match app.value_of("type") {
+        Some(app_type) => println!("{}", app_type),
+        None => println!("no type"),
+    }
+
+    // let res = reqwest::get(
+    //     "https://api.juejin.cn/user_api/v1/user/get?aid=2608&uuid=7086012728590812683&not_self=0",
+    // )
+    // .await?;
+    // .json::<HashMap<String, String>>()
+    // .await?;
+
+    let res = reqwest::get(
+        "https://translate.google.cn/translate_a/single?client=at&sl=en&tl=zh-CN&dt=t&q=google",
+    )
+    .await?;
+
+    println!("{:#?}", res);
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_app() {
-        app().debug_assert();
-    }
 }
