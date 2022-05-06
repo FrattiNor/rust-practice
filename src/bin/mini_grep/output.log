@@ -1,0 +1,3 @@
+Config { search_text: "how", filename: "./src/bin/mini_grep/sf.txt", case_insensitive: true }
+How dreary to be somebody!
+How public, like a frog
